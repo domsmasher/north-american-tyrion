@@ -5,6 +5,3 @@ var gulp = require('gulp'),
 // read gulp directory contents for the tasks...
 require('require-dir')('./gulp');
 console.log('Invoking gulp -',env);
-gulp.task('default', ['clean'], function (defaultTasks) {
-  gulp.start(env);
-});

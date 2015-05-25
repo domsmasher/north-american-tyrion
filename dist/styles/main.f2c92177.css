@@ -1,0 +1,13 @@
+*,
+*:after,
+*:before {
+  box-sizing: border-box;
+}
+#main {
+  margin: 0 auto;
+  width: 90%;
+  max-width: 780px;
+}
+.test {
+  color: #008000;
+}

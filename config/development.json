@@ -1,0 +1,9 @@
+{
+  "minify": false,
+  "strict": false,
+  "breakOnError": false,
+  "server" : {
+    "url": "dev.example.co.uk",
+    "port": "8080"
+  }
+}

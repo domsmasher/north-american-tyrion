@@ -5,18 +5,80 @@ var gulp = require('gulp'),
   through = require('through'),
   gutil = require('gulp-util'),
   plugins = gulpLoadPlugins(),
+  cachebust = new plugins.cachebust(),
+  express = require('express'),
+  browserSync = require('browser-sync'),
+  minimist = require('minimist'),
+  runSequence = require('run-sequence'),
+  options = minimist(process.argv),
+  enviroment = options.enviroment || 'development',
+  server,
   paths = {
     js: ['*.js', 'test/**/*.js', '!test/coverage/**', '!bower_components/**', 'packages/**/*.js', '!packages/**/node_modules/**', '!packages/contrib/**/*.js', '!packages/contrib/**/node_modules/**'],
-    html: ['packages/**/public/**/views/**', 'packages/**/server/views/**'],
-    css: ['!bower_components/**', 'packages/**/public/**/css/*.css', '!packages/contrib/**/public/**/css/*.css'],
-    less: ['**/public/**/css/*.less'],
-    sass: ['**/public/**/css/*.scss']
+    html: ['src/html/**/*.html'],
+    images: ['src/images/**/*.{png,jpg}'],
+    css: ['!bower_components/**', 'src/styles/**/*.css'],
+    stylus: ['src/stylus/*.styl']
   };
 
-var defaultTasks = ['clean', 'jshint', 'less', 'csslint', 'devServe', 'watch'];
+var rename = function () {
+  return plugins.rename(function (path) {
+    path.dirname = '';
+  });
+};
 
-gulp.task('env:development', function () {
-  process.env.NODE_ENV = 'development';
+var reload = function () {
+  if (server) {
+    return browserSync.reload({stream: true});
+  } 
+
+  return gutil.noop();
+};
+
+gulp.task('html', function () {
+  return gulp.src(paths.html)
+    .pipe(cachebust.references())
+    .pipe(gulp.dest('dist'))
+    .pipe(reload());
+});
+
+gulp.task('images', function () {
+  return gulp.src(paths.images)
+    .pipe(plugins.imagemin())
+    .pipe(cachebust.resources())
+    .pipe(gulp.dest('dist/images'))
+    .pipe(reload());
+});
+
+gulp.task('styles', function () {
+  return gulp
+    .src(paths.stylus)
+    .pipe(plugins.stylus())
+    //.pipe(enviroment === 'production'? plugins.minifyCss() : gutil.noop())
+    .pipe(gulp.dest('src/styles'))
+    .pipe(reload());
+});
+
+gulp.task('scripts', function () {});
+
+gulp.task('server', function () {
+  server = express();
+  server.use(express.static('dist'));
+  server.listen(5000);
+  browserSync({proxy: 'localhost:5000'});
+});
+
+gulp.task('build', function(done) { 
+  runSequence('images', 'styles', 'scripts','autoprefixer',  'html', done);
+});
+
+gulp.task('autoprefixer', function () {
+  return gulp.src(paths.css)
+    .pipe(plugins.autoprefixer())
+    .pipe(plugins.uncss({html: 'dist/index.html'}))
+    .pipe(plugins.csso())
+    .pipe(cachebust.resources())
+    .pipe(gulp.dest('dist/styles'));
 });
 
 gulp.task('jshint', function () {
@@ -34,31 +96,14 @@ gulp.task('csslint', function () {
     .pipe(count('csslint', 'files lint free'));
 });
 
-gulp.task('less', function() {
-  return gulp.src(paths.less)
-    .pipe(plugins.less())
-    .pipe(gulp.dest(function (vinylFile) {
-      return vinylFile.cwd;
-    }));
-});
-
-gulp.task('devServe', ['env:development'], function () {
-  plugins.nodemon({
-    script: 'server.js',
-    ext: 'html js',
-    env: { 'NODE_ENV': 'development' } ,
-    ignore: ['./node_modules/**'],
-    nodeArgs: ['--debug']
-  });
-});
-
 gulp.task('watch', function () {
-  gulp.watch(paths.js, ['jshint']).on('change', plugins.livereload.changed);
-  gulp.watch(paths.html).on('change', plugins.livereload.changed);
-  gulp.watch(paths.css, ['csslint']).on('change', plugins.livereload.changed);
-  gulp.watch(paths.less, ['less']).on('change', plugins.livereload.changed);
-  plugins.livereload.listen({interval: 500});
+  gulp.watch(paths.js, ['jshint']);
+  gulp.watch(paths.html, ['html']);
+  gulp.watch(paths.css, ['autoprefixer', 'csslint']);
+  gulp.watch(paths.stylus, ['styles']);
 });
+
+gulp.task('default', ['build', 'watch', 'server']);
 
 function count(taskName, message) {
   var fileCount = 0;
@@ -74,4 +119,3 @@ function count(taskName, message) {
   return through(countFiles, endStream);
 }
 
-gulp.task('development', defaultTasks);
