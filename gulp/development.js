@@ -14,7 +14,7 @@ var gulp = require('gulp'),
   enviroment = options.enviroment || 'development',
   server,
   paths = {
-    js: ['*.js', 'test/**/*.js', '!test/coverage/**', '!bower_components/**', 'packages/**/*.js', '!packages/**/node_modules/**', '!packages/contrib/**/*.js', '!packages/contrib/**/node_modules/**'],
+    scripts: ['src/scripts/**/*.js'],
     html: ['src/html/**/*.html'],
     images: ['src/images/**/*.{png,jpg}'],
     css: ['!bower_components/**', 'src/styles/**/*.css'],
@@ -30,7 +30,7 @@ var rename = function () {
 var reload = function () {
   if (server) {
     return browserSync.reload({stream: true});
-  } 
+  }
 
   return gutil.noop();
 };
@@ -68,7 +68,14 @@ gulp.task('server', function () {
   browserSync({proxy: 'localhost:5000'});
 });
 
-gulp.task('build', function(done) { 
+gulp.task('concat', function() {
+  return gulp.src(paths.scripts)
+    .pipe(plugins.concat('all.js'))
+    .pipe(plugins.uglify())
+    .pipe(gulp.dest('dist/scripts'));
+});
+
+gulp.task('build', function(done) {
   runSequence('images', 'styles', 'scripts','autoprefixer',  'html', done);
 });
 
@@ -118,4 +125,3 @@ function count(taskName, message) {
   }
   return through(countFiles, endStream);
 }
-
